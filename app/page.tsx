@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
 import {
   Package, Eye, EyeOff, ArrowRight, Mail, Lock,
   MapPin, Check, Truck, Star, Zap, Shield, ChevronRight
@@ -403,24 +405,42 @@ export default function LoginPage() {
 
   const strength = getPasswordStrength(password);
 
-  // Google OAuth sign-in
+  const { toast } = useToast();
+
   const handleGoogleSignIn = useCallback(async () => {
     setGoogleLoading(true);
     try {
       await signIn("google", { callbackUrl: "/dashboard" });
     } catch {
       setGoogleLoading(false);
+      toast.error("Google sign-in failed. Please try again.");
     }
-  }, []);
+  }, [toast]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
     setIsLoading(true);
-    // Future: wire to credentials provider
-    await new Promise((r) => setTimeout(r, 1200));
-    setIsLoading(false);
-    router.push("/dashboard");
-  }, [router]);
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      if (result?.error) {
+        toast.error("Invalid email or password. Please try again.");
+      } else {
+        router.push("/dashboard");
+      }
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [email, password, router, toast]);
 
   // Show loading screen while checking session
   if (status === "loading") {
@@ -934,15 +954,13 @@ export default function LoginPage() {
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs" style={{ color: "#475569" }}>Password</span>
-                  <button
-                    type="button"
+                  <Link
+                    href="/forgot-password"
                     className="text-xs transition-colors"
-                    style={{ color: "#60A5FA", fontFamily: "'Inter', sans-serif", cursor: "pointer", border: "none", background: "none" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#93C5FD")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#60A5FA")}
+                    style={{ color: "#60A5FA", fontFamily: "'Inter', sans-serif" }}
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
                 <motion.div
                   animate={{
@@ -1094,7 +1112,7 @@ export default function LoginPage() {
               </motion.div>
             </form>
 
-            {/* Sign up */}
+            {/* Sign up link */}
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1103,22 +1121,13 @@ export default function LoginPage() {
               style={{ color: "#475569" }}
             >
               Don&apos;t have an account?{" "}
-              <button
-                className="font-semibold"
-                style={{
-                  color: "#60A5FA",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: 14,
-                  transition: "color 0.2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#93C5FD")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#60A5FA")}
+              <Link
+                href="/signup"
+                className="font-semibold transition-colors"
+                style={{ color: "#60A5FA", fontFamily: "'Inter', sans-serif", fontSize: 14 }}
               >
                 Create free account →
-              </button>
+              </Link>
             </motion.p>
           </motion.div>
 
