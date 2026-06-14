@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
-import Link from "next/link";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Package, Eye, EyeOff, ArrowRight, Mail, Lock,
   MapPin, Check, Truck, Star, Zap, Shield, ChevronRight
@@ -382,7 +383,18 @@ export default function LoginPage() {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Redirect already-authenticated users to dashboard
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [status, router]);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 100);
@@ -391,13 +403,45 @@ export default function LoginPage() {
 
   const strength = getPasswordStrength(password);
 
+  // Google OAuth sign-in
+  const handleGoogleSignIn = useCallback(async () => {
+    setGoogleLoading(true);
+    try {
+      await signIn("google", { callbackUrl: "/dashboard" });
+    } catch {
+      setGoogleLoading(false);
+    }
+  }, []);
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 1800));
+    // Future: wire to credentials provider
+    await new Promise((r) => setTimeout(r, 1200));
     setIsLoading(false);
-    window.location.href = "/dashboard";
-  }, []);
+    router.push("/dashboard");
+  }, [router]);
+
+  // Show loading screen while checking session
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#050816" }}>
+        <motion.div
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="flex items-center gap-3"
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)" }}
+          >
+            <Package size={20} className="text-white" />
+          </div>
+          <span className="text-xl font-bold text-white">OrderHub</span>
+        </motion.div>
+      </div>
+    );
+  }
 
   const platformCards: PlatformCardProps[] = [
     {
@@ -751,13 +795,15 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35 }}
-              whileHover={{
+              whileHover={!googleLoading ? {
                 scale: 1.02,
                 background: "rgba(255,255,255,0.1)",
                 borderColor: "rgba(255,255,255,0.3)",
                 boxShadow: "0 8px 30px rgba(0,0,0,0.3), 0 0 20px rgba(66,133,244,0.2)",
-              }}
-              whileTap={{ scale: 0.98 }}
+              } : {}}
+              whileTap={!googleLoading ? { scale: 0.98 } : {}}
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading}
               id="google-login-btn"
               className="w-full flex items-center justify-center gap-3 mb-5"
               style={{
@@ -769,17 +815,31 @@ export default function LoginPage() {
                 fontFamily: "'Inter', sans-serif",
                 fontSize: 14,
                 fontWeight: 500,
-                cursor: "pointer",
+                cursor: googleLoading ? "not-allowed" : "pointer",
+                opacity: googleLoading ? 0.7 : 1,
                 transition: "all 0.2s ease",
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 18 18">
-                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />
-                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
-                <path fill="#FBBC05" d="M3.964 10.706c-.18-.54-.282-1.117-.282-1.706s.102-1.166.282-1.706V4.962H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.038l3.007-2.332z" />
-                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.962L3.964 6.294C4.672 4.167 6.656 3.58 9 3.58z" />
-              </svg>
-              Continue with Google
+              {googleLoading ? (
+                <>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-4 h-4 rounded-full border-2 border-white border-t-transparent"
+                  />
+                  <span>Signing you in...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 18 18">
+                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />
+                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
+                    <path fill="#FBBC05" d="M3.964 10.706c-.18-.54-.282-1.117-.282-1.706s.102-1.166.282-1.706V4.962H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.038l3.007-2.332z" />
+                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.962L3.964 6.294C4.672 4.167 6.656 3.58 9 3.58z" />
+                  </svg>
+                  <span>Continue with Google</span>
+                </>
+              )}
             </motion.button>
 
             {/* Divider */}

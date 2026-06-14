@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
   Search,
   ChevronDown,
-  User,
   Settings,
   LogOut,
-  Sun,
-  Moon,
+  LayoutDashboard,
+  HelpCircle,
+  User,
 } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
 import { useAppStore } from "@/store/useAppStore";
 import { notifications } from "@/lib/mockData";
 
@@ -19,11 +21,24 @@ export default function Header() {
   const { searchQuery, setSearchQuery, sidebarCollapsed } = useAppStore();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const { data: session } = useSession();
+  const user = session?.user;
 
   const unreadCount = notifications.filter((n) => !n.read).length;
-
   const leftOffset = sidebarCollapsed ? 72 : 260;
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    setProfileOpen(false);
+    await signOut({ callbackUrl: "/" });
+  };
+
+  // Get initials from name fallback
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "U";
 
   return (
     <motion.header
@@ -56,15 +71,6 @@ export default function Header() {
 
       {/* Right side */}
       <div className="flex items-center gap-2">
-        {/* Theme toggle */}
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors"
-          style={{ color: "#94A3B8" }}
-        >
-          {darkMode ? <Moon size={16} /> : <Sun size={16} />}
-        </button>
-
         {/* Notifications */}
         <div className="relative">
           <button
@@ -104,10 +110,7 @@ export default function Header() {
                   <span className="font-semibold text-sm text-white">Notifications</span>
                   <span
                     className="text-xs px-2 py-0.5 rounded-full"
-                    style={{
-                      background: "rgba(37,99,235,0.15)",
-                      color: "#60A5FA",
-                    }}
+                    style={{ background: "rgba(37,99,235,0.15)", color: "#60A5FA" }}
                   >
                     {unreadCount} new
                   </span>
@@ -144,9 +147,7 @@ export default function Header() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="text-sm font-medium text-white truncate">
-                              {n.title}
-                            </p>
+                            <p className="text-sm font-medium text-white truncate">{n.title}</p>
                             {!n.read && (
                               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
                             )}
@@ -176,20 +177,31 @@ export default function Header() {
             }}
             className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-white/5 transition-colors"
           >
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm"
-              style={{
-                background: "linear-gradient(135deg, #2563EB, #7C3AED)",
-              }}
-            >
-              S
-            </div>
+            {/* Avatar */}
+            {user?.image ? (
+              <Image
+                src={user.image}
+                alt={user.name ?? "User"}
+                width={32}
+                height={32}
+                className="rounded-full object-cover"
+                style={{ border: "1.5px solid rgba(37,99,235,0.4)" }}
+              />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm text-white"
+                style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
+              >
+                {initials}
+              </div>
+            )}
+
             <div className="hidden sm:flex flex-col items-start">
               <span className="text-sm font-medium text-white leading-tight">
-                Shreesh
+                {user?.name?.split(" ")[0] ?? "User"}
               </span>
               <span className="text-xs" style={{ color: "#94A3B8" }}>
-                user@gmail.com
+                {user?.email ?? ""}
               </span>
             </div>
             <ChevronDown
@@ -206,37 +218,79 @@ export default function Header() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 top-12 w-52 rounded-xl overflow-hidden z-50"
+                className="absolute right-0 top-12 w-60 rounded-xl overflow-hidden z-50"
                 style={{
                   background: "rgba(11, 17, 32, 0.98)",
                   border: "1px solid rgba(255,255,255,0.08)",
                   boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
                 }}
               >
-                <div className="p-3 border-b border-white/[0.06]">
-                  <p className="text-sm font-medium text-white">Shreesh Kumar</p>
-                  <p className="text-xs" style={{ color: "#94A3B8" }}>
-                    user@gmail.com
-                  </p>
+                {/* User info header */}
+                <div className="p-4 border-b border-white/[0.06] flex items-center gap-3">
+                  {user?.image ? (
+                    <Image
+                      src={user.image}
+                      alt={user.name ?? "User"}
+                      width={36}
+                      height={36}
+                      className="rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm text-white flex-shrink-0"
+                      style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
+                    >
+                      {initials}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{user?.name ?? "User"}</p>
+                    <p className="text-xs truncate" style={{ color: "#64748B" }}>
+                      {user?.email ?? ""}
+                    </p>
+                  </div>
                 </div>
-                {[
-                  { icon: User, label: "Account" },
-                  { icon: Settings, label: "Settings" },
-                ].map((item) => (
+
+                {/* Menu items */}
+                <div className="py-1">
+                  {[
+                    { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+                    { icon: Settings, label: "Settings", href: "/dashboard/settings" },
+                    { icon: HelpCircle, label: "Help & Support", href: "/dashboard/help" },
+                  ].map((item) => (
+                    <a
+                      key={item.label}
+                      href={item.href}
+                      onClick={() => setProfileOpen(false)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors text-left"
+                    >
+                      <item.icon size={15} style={{ color: "#94A3B8" }} />
+                      <span className="text-sm" style={{ color: "#94A3B8" }}>
+                        {item.label}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+
+                {/* Logout */}
+                <div className="border-t border-white/[0.06] py-1">
                   <button
-                    key={item.label}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors text-left"
+                    onClick={handleSignOut}
+                    disabled={signingOut}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-500/10 transition-colors"
                   >
-                    <item.icon size={15} style={{ color: "#94A3B8" }} />
-                    <span className="text-sm" style={{ color: "#94A3B8" }}>
-                      {item.label}
+                    {signingOut ? (
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-4 h-4 rounded-full border-2 border-red-400 border-t-transparent"
+                      />
+                    ) : (
+                      <LogOut size={15} className="text-red-400" />
+                    )}
+                    <span className="text-sm text-red-400">
+                      {signingOut ? "Signing out..." : "Sign out"}
                     </span>
-                  </button>
-                ))}
-                <div className="border-t border-white/[0.06]">
-                  <button className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-500/10 transition-colors">
-                    <LogOut size={15} className="text-red-400" />
-                    <span className="text-sm text-red-400">Log out</span>
                   </button>
                 </div>
               </motion.div>

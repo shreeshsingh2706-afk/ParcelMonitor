@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Providers from "@/components/providers";
 
 export const metadata: Metadata = {
   title: "OrderHub — All Your Orders, One Dashboard",
@@ -29,7 +30,7 @@ export default function RootLayout({
         />
       </head>
       <body style={{ background: "#050816", color: "#FFFFFF" }}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
