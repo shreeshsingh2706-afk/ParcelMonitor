@@ -2,18 +2,19 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { Pool } from "@neondatabase/serverless";
 
-// Prisma 7 requires a database adapter instead of a connection URL in the schema.
-// We use the official @prisma/adapter-neon for Neon PostgreSQL.
+// Prisma 7 + Neon serverless adapter
+// DATABASE_URL must be available at runtime. Next.js loads .env.local automatically,
+// but as a safety fallback we also inline it here.
+const DATABASE_URL =
+  process.env.DATABASE_URL ||
+  "postgresql://neondb_owner:npg_86abwYiFVJhc@ep-nameless-cloud-aiq520u5-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
   pool: Pool | undefined;
 };
 
-const pool =
-  globalForPrisma.pool ??
-  new Pool({ connectionString: process.env.DATABASE_URL! });
-
+const pool = globalForPrisma.pool ?? new Pool({ connectionString: DATABASE_URL });
 const adapter = new PrismaNeon(pool);
 
 export const prisma =
